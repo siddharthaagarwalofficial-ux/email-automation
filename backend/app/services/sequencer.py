@@ -1,4 +1,3 @@
-import json
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -48,18 +47,13 @@ def run_classification(db: Session) -> dict:
         if not outbound or not inbound:
             continue
 
-        try:
-            result = classify_reply(
-                subject=outbound.subject,
-                sender=outbound.sender,
-                original_body=outbound.body,
-                reply_sender=inbound.sender,
-                reply_body=inbound.body,
-            )
-        except (json.JSONDecodeError, IndexError, Exception) as e:
-            logger.warning(f"Classification failed for thread {thread.id}: {e}")
-            errors += 1
-            continue
+        result = classify_reply(
+            subject=outbound.subject,
+            sender=outbound.sender,
+            original_body=outbound.body,
+            reply_sender=inbound.sender,
+            reply_body=inbound.body,
+        )
 
         classification = Classification(
             thread_id=thread.id,
@@ -181,19 +175,14 @@ def run_drafting(db: Session) -> dict:
             if f.status == FollowUpStatus.SENT and f.draft_body
         ]
 
-        try:
-            result = draft_follow_up(
-                recipient_name=thread.recipient_name or thread.recipient_email,
-                recipient_email=thread.recipient_email,
-                subject=original.subject,
-                original_body=original.body,
-                previous_followups=prev,
-                sequence_number=fu.sequence_number,
-            )
-        except (json.JSONDecodeError, IndexError, Exception) as e:
-            logger.warning(f"Drafting failed for follow-up {fu.id}: {e}")
-            errors += 1
-            continue
+        result = draft_follow_up(
+            recipient_name=thread.recipient_name or thread.recipient_email,
+            recipient_email=thread.recipient_email,
+            subject=original.subject,
+            original_body=original.body,
+            previous_followups=prev,
+            sequence_number=fu.sequence_number,
+        )
 
         fu.draft_subject = result["subject"]
         fu.draft_body = result["body"]
@@ -240,17 +229,13 @@ def run_auto_replies(db: Session) -> dict:
         if not original or not reply or not thread.classification:
             continue
 
-        try:
-            result = draft_auto_reply(
-                subject=original.subject,
-                original_body=original.body,
-                reply_body=reply.body,
-                category=thread.classification.category.value,
-            )
-        except (json.JSONDecodeError, IndexError, Exception) as e:
-            logger.warning(f"Auto-reply drafting failed for thread {thread.id}: {e}")
-            errors += 1
-            continue
+        result = draft_auto_reply(
+            subject=original.subject,
+            original_body=original.body,
+            reply_body=reply.body,
+            category=thread.classification.category.value,
+            recipient_name=thread.recipient_name or "",
+        )
 
         fu = FollowUp(
             thread_id=thread.id,
