@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.so
+.env
+.venv/
+venv/
+*.db
+*.sqlite3
+node_modules/
+.next/
+dist/
+.DS_Store
+*.log
+credentials.json
+token.json
+token.pickle
+.claude/
