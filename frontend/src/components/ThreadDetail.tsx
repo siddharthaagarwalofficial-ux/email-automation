@@ -21,6 +21,9 @@ function formatDate(dateStr: string): string {
 
 function FollowUpCard({ followUp, threadId, onAction }: { followUp: FollowUp; threadId: number; onAction: () => void }) {
   const [acting, setActing] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editSubject, setEditSubject] = useState(followUp.draft_subject || "");
+  const [editBody, setEditBody] = useState(followUp.draft_body || "");
 
   const handleAction = async (action: string) => {
     setActing(true);
@@ -30,6 +33,27 @@ function FollowUpCard({ followUp, threadId, onAction }: { followUp: FollowUp; th
     } finally {
       setActing(false);
     }
+  };
+
+  const handleSaveEdit = async () => {
+    setActing(true);
+    try {
+      await api.followUpAction(threadId, followUp.id, {
+        action: "edit",
+        edited_subject: editSubject,
+        edited_body: editBody,
+      });
+      setEditing(false);
+      onAction();
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditSubject(followUp.draft_subject || "");
+    setEditBody(followUp.draft_body || "");
+    setEditing(false);
   };
 
   const statusBadge: Record<string, string> = {
@@ -43,7 +67,9 @@ function FollowUpCard({ followUp, threadId, onAction }: { followUp: FollowUp; th
   return (
     <div className="border rounded-lg p-4 bg-orange-50/50">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium">Follow-up #{followUp.sequence_number}</span>
+        <span className="text-sm font-medium">
+          {followUp.sequence_number === 0 ? "Auto-Reply" : `Follow-up #${followUp.sequence_number}`}
+        </span>
         <div className="flex items-center gap-2">
           <span className={`text-xs px-2 py-0.5 rounded-full ${statusBadge[followUp.status] || ""}`}>
             {followUp.status.replace("_", " ")}
@@ -54,7 +80,8 @@ function FollowUpCard({ followUp, threadId, onAction }: { followUp: FollowUp; th
         </div>
       </div>
 
-      {followUp.draft_body && (
+      {/* Read-only view */}
+      {followUp.draft_body && !editing && (
         <div className="bg-white rounded border p-3 mt-2 text-sm">
           {followUp.draft_subject && (
             <p className="font-medium text-gray-700 mb-1">Subject: {followUp.draft_subject}</p>
@@ -63,7 +90,47 @@ function FollowUpCard({ followUp, threadId, onAction }: { followUp: FollowUp; th
         </div>
       )}
 
-      {followUp.status === "draft_ready" && (
+      {/* Inline edit mode */}
+      {editing && (
+        <div className="bg-white rounded border p-3 mt-2 space-y-2">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Subject</label>
+            <input
+              type="text"
+              value={editSubject}
+              onChange={(e) => setEditSubject(e.target.value)}
+              className="w-full px-2 py-1.5 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Body</label>
+            <textarea
+              value={editBody}
+              onChange={(e) => setEditBody(e.target.value)}
+              rows={8}
+              className="w-full px-2 py-1.5 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 resize-y"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              disabled={acting}
+              onClick={handleSaveEdit}
+              className="px-3 py-1.5 bg-indigo-600 text-white rounded text-xs font-medium hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {acting ? "Saving..." : "Save Changes"}
+            </button>
+            <button
+              disabled={acting}
+              onClick={handleCancelEdit}
+              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded text-xs font-medium hover:bg-gray-200 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {followUp.status === "draft_ready" && !editing && (
         <div className="flex gap-2 mt-3">
           <button
             disabled={acting}
@@ -71,6 +138,17 @@ function FollowUpCard({ followUp, threadId, onAction }: { followUp: FollowUp; th
             className="px-3 py-1.5 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700 disabled:opacity-50"
           >
             Approve & Queue
+          </button>
+          <button
+            disabled={acting}
+            onClick={() => {
+              setEditSubject(followUp.draft_subject || "");
+              setEditBody(followUp.draft_body || "");
+              setEditing(true);
+            }}
+            className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded text-xs font-medium hover:bg-indigo-200 disabled:opacity-50"
+          >
+            Edit Draft
           </button>
           <button
             disabled={acting}

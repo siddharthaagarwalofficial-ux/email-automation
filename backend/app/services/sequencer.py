@@ -33,7 +33,6 @@ def run_classification(db: Session) -> dict:
     )
 
     classified = 0
-    errors = 0
     for thread in threads:
         outbound = next(
             (e for e in thread.emails if e.direction == EmailDirection.OUTBOUND and e.email_type == EmailType.ORIGINAL),
@@ -66,7 +65,7 @@ def run_classification(db: Session) -> dict:
         classified += 1
 
     db.commit()
-    return {"classified": classified, "errors": errors}
+    return {"classified": classified}
 
 
 def run_sequencing(db: Session) -> dict:
@@ -158,7 +157,6 @@ def run_drafting(db: Session) -> dict:
     )
 
     drafted = 0
-    errors = 0
     for fu in follow_ups:
         thread = fu.thread
         original = next(
@@ -190,7 +188,7 @@ def run_drafting(db: Session) -> dict:
         drafted += 1
 
     db.commit()
-    return {"drafted": drafted, "errors": errors}
+    return {"drafted": drafted}
 
 
 def run_auto_replies(db: Session) -> dict:
@@ -213,7 +211,6 @@ def run_auto_replies(db: Session) -> dict:
     )
 
     drafted = 0
-    errors = 0
     for thread in threads:
         # Skip if we already have ANY auto-reply follow-up (including sent)
         has_auto = any(
@@ -249,7 +246,7 @@ def run_auto_replies(db: Session) -> dict:
         drafted += 1
 
     db.commit()
-    return {"auto_replies_drafted": drafted, "errors": errors}
+    return {"auto_replies_drafted": drafted}
 
 
 def pause_followups_for_replied(db: Session) -> dict:

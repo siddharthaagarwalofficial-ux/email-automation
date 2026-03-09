@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.models import (
     ThreadStatus, ReplyCategory, EmailDirection, EmailType, FollowUpStatus
@@ -8,6 +8,8 @@ from app.models import (
 
 
 class EmailOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     thread_id: int
     direction: EmailDirection
@@ -18,11 +20,10 @@ class EmailOut(BaseModel):
     body: str
     sent_at: datetime
 
-    class Config:
-        from_attributes = True
-
 
 class ClassificationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     thread_id: int
     category: ReplyCategory
@@ -31,11 +32,10 @@ class ClassificationOut(BaseModel):
     has_meeting_intent: bool
     classified_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
-
 
 class FollowUpOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     thread_id: int
     sequence_number: int
@@ -46,11 +46,10 @@ class FollowUpOut(BaseModel):
     created_at: datetime
     sent_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
-
 
 class ThreadOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     gmail_thread_id: Optional[str]
     recipient_email: str
@@ -63,11 +62,10 @@ class ThreadOut(BaseModel):
     classification: Optional[ClassificationOut] = None
     follow_ups: list[FollowUpOut] = []
 
-    class Config:
-        from_attributes = True
-
 
 class ThreadSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     recipient_email: str
     recipient_name: Optional[str]
@@ -78,9 +76,6 @@ class ThreadSummary(BaseModel):
     pending_follow_ups: int = 0
     last_activity: datetime
     created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class FollowUpAction(BaseModel):

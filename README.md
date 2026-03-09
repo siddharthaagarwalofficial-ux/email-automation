@@ -55,9 +55,10 @@ The email source is abstracted behind an `EmailConnector` interface with 4 metho
 - Gmail integration is a config change, not a code change
 - Adding Outlook, SendGrid, or any other source = implement 4 methods
 
-**2. Pipeline-as-a-Single-Call**
-The entire AI workflow (classify → pause → schedule → draft → auto-reply) runs as one orchestrated pipeline via `POST /api/pipeline/run`. Each step is also available individually. This makes it easy to:
-- Run the full pipeline on a cron schedule in production
+**2. Pipeline-as-a-Single-Call + Background Scheduler**
+The entire AI workflow (classify → pause → schedule → draft → auto-reply) runs as one orchestrated pipeline via `POST /api/pipeline/run`. Each step is also available individually. A background scheduler auto-runs the pipeline every 60s. This makes it easy to:
+- Run autonomously without manual intervention
+- Trigger on-demand via the dashboard button
 - Debug individual steps in isolation
 - Add new pipeline stages without touching existing ones
 
@@ -97,6 +98,9 @@ No external database dependency. The entire state lives in a single file. For pr
 - **Meeting Intent Detection** — Surfaces threads where the contact wants to schedule a call as action items
 - **Reply Routing** — Routes classified replies to the right team (Partnerships, Product, Outreach, Compliance) with configurable rules
 - **Analytics** — Classification breakdown, status distribution, reply time charts, follow-up effectiveness
+- **Background Scheduler** — Pipeline auto-runs every 60s (sync + classify + schedule + draft) via asyncio background task
+- **Inline Draft Editing** — Edit AI-generated drafts directly in the UI before approving
+- **Graceful Degradation** — Keyword-based classifier and template-based drafter fall back when Claude API is unavailable
 
 ---
 
@@ -209,6 +213,12 @@ email-follow-up-agent/
 │   │       ├── pipeline.py         # AI pipeline triggers
 │   │       ├── analytics.py        # Charts and metrics data
 │   │       └── routing.py          # Reply routing rules + assignments
+│   ├── tests/
+│   │   ├── conftest.py            # Shared fixtures (in-memory DB, sample threads)
+│   │   ├── test_classifier.py     # Fallback classifier tests (21 tests)
+│   │   ├── test_drafter.py        # Template drafter tests (12 tests)
+│   │   ├── test_sequencer.py      # Sequencing engine tests (11 tests)
+│   │   └── test_pipeline.py       # Integration tests (14 tests)
 │   ├── requirements.txt
 │   └── .env.example
 ├── frontend/
@@ -232,19 +242,35 @@ email-follow-up-agent/
 
 ---
 
+## Testing
+
+The project includes a comprehensive test suite with **58 tests** covering the full pipeline:
+
+```bash
+cd backend
+source .venv/bin/activate
+pytest tests/ -v
+```
+
+| Test File | Tests | Coverage |
+|-----------|-------|----------|
+| `test_classifier.py` | 21 | Fallback keyword classifier — all 6 categories, meeting intent, priority ordering |
+| `test_drafter.py` | 12 | Template-based follow-up and auto-reply drafters |
+| `test_sequencer.py` | 11 | Sequencing engine — scheduling, drafting, auto-replies, pause logic |
+| `test_pipeline.py` | 14 | Integration tests — full pipeline, API endpoints, thread CRUD |
+
+---
+
 ## Tradeoffs & What I'd Build Next
 
 ### Tradeoffs Made
 - **SQLite over PostgreSQL** — Zero-config for reviewers. The ORM layer means swapping is a one-line change.
 - **Mock data over requiring Gmail setup** — Reviewers can clone-and-run immediately. Gmail connector is fully built and tested separately.
-- **Polling over webhooks** — Pipeline runs on-demand via button click. Production would use Gmail push notifications or a cron job.
 - **Client-side state over server-sent events** — Dashboard refreshes after actions. Production would use WebSockets for real-time updates.
 
 ### What I'd Build Next (with more time)
-1. **Background scheduler** — Run the pipeline automatically on a cron (every 15 min) instead of manual trigger
-2. **Gmail push notifications** — Replace polling with real-time webhook-based reply detection
-3. **Draft editing inline** — Allow editing follow-up drafts directly in the UI before approving
-4. **A/B testing for follow-ups** — Generate 2 draft variants per follow-up, track which performs better
-5. **Team collaboration** — Multi-user support with role-based access (reviewer, sender, admin)
-6. **Slack/Teams integration** — Notify the assigned team when a new reply is classified and routed
-7. **Production infra** — PostgreSQL, Redis for job queues, Docker compose for deployment
+1. **Gmail push notifications** — Replace polling with real-time webhook-based reply detection
+2. **A/B testing for follow-ups** — Generate 2 draft variants per follow-up, track which performs better
+3. **Team collaboration** — Multi-user support with role-based access (reviewer, sender, admin)
+4. **Slack/Teams integration** — Notify the assigned team when a new reply is classified and routed
+5. **Production infra** — PostgreSQL, Redis for job queues, Docker compose for deployment
