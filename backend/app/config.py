@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -5,6 +6,12 @@ from typing import Literal
 
 # Resolve paths relative to the backend directory, not cwd
 BACKEND_DIR = Path(__file__).resolve().parent.parent
+
+# Remove empty env vars so .env file values take priority
+# (pydantic-settings treats empty strings as valid, overriding .env)
+for key in ["ANTHROPIC_API_KEY"]:
+    if key in os.environ and os.environ[key] == "":
+        del os.environ[key]
 
 
 class Settings(BaseSettings):
