@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -10,6 +12,8 @@ from app.services.sequencer import (
     pause_followups_for_replied,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/pipeline", tags=["pipeline"])
 
 
@@ -17,28 +21,44 @@ router = APIRouter(prefix="/api/pipeline", tags=["pipeline"])
 def run_pipeline(db: Session = Depends(get_db)):
     """Run the full AI pipeline: classify replies → pause follow-ups → schedule new follow-ups → draft emails → auto-reply drafts."""
 
+    results = {}
+
     # Step 1: Classify any unclassified replies
-    classification_result = run_classification(db)
+    try:
+        results["classification"] = run_classification(db)
+    except Exception as e:
+        logger.error(f"Classification step failed: {e}")
+        results["classification"] = {"error": str(e)}
 
     # Step 2: Cancel follow-ups for threads that got replies
-    pause_result = pause_followups_for_replied(db)
+    try:
+        results["paused"] = pause_followups_for_replied(db)
+    except Exception as e:
+        logger.error(f"Pause step failed: {e}")
+        results["paused"] = {"error": str(e)}
 
     # Step 3: Schedule follow-ups for no-reply threads
-    sequencing_result = run_sequencing(db)
+    try:
+        results["sequencing"] = run_sequencing(db)
+    except Exception as e:
+        logger.error(f"Sequencing step failed: {e}")
+        results["sequencing"] = {"error": str(e)}
 
     # Step 4: Generate AI drafts for scheduled follow-ups
-    drafting_result = run_drafting(db)
+    try:
+        results["drafting"] = run_drafting(db)
+    except Exception as e:
+        logger.error(f"Drafting step failed: {e}")
+        results["drafting"] = {"error": str(e)}
 
     # Step 5: Draft auto-replies for positive/more_info replies
-    auto_reply_result = run_auto_replies(db)
+    try:
+        results["auto_replies"] = run_auto_replies(db)
+    except Exception as e:
+        logger.error(f"Auto-reply step failed: {e}")
+        results["auto_replies"] = {"error": str(e)}
 
-    return {
-        "classification": classification_result,
-        "paused": pause_result,
-        "sequencing": sequencing_result,
-        "drafting": drafting_result,
-        "auto_replies": auto_reply_result,
-    }
+    return results
 
 
 @router.post("/classify")

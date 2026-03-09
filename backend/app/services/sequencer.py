@@ -77,7 +77,8 @@ def run_classification(db: Session) -> dict:
 
 def run_sequencing(db: Session) -> dict:
     """Schedule follow-ups for threads with no reply and no pending follow-ups."""
-    now = datetime.now(timezone.utc)
+    # Use naive UTC to match SQLite's naive datetime storage
+    now = datetime.utcnow()
 
     threads = (
         db.query(EmailThread)
